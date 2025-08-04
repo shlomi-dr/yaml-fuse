@@ -1,4 +1,4 @@
-name: CI (Updated)
+name: CI (Final Test)
 
 on:
   push:
