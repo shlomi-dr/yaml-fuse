@@ -56,7 +56,6 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: unit-tests
-    continue-on-error: true  # Allow failure since FUSE might not work in CI
     
     steps:
     - name: Checkout code
@@ -88,8 +87,8 @@ jobs:
     
     - name: Run integration tests
       run: |
-        echo "Attempting to run integration tests with FUSE..."
-        sudo python3 test_yaml_fuse.py --integration || echo "Integration tests failed (FUSE may not be available in CI)"
+        echo "Running integration tests..."
+        python3 test_yaml_fuse.py --integration
       env:
         PYTHONPATH: ${{ github.workspace }}
 
@@ -98,7 +97,6 @@ jobs:
     name: Functional Tests
     runs-on: ubuntu-latest
     needs: unit-tests
-    continue-on-error: true  # Allow failure since FUSE might not work in CI
     
     steps:
     - name: Checkout code
@@ -130,8 +128,8 @@ jobs:
     
     - name: Run functional tests
       run: |
-        echo "Attempting to run functional tests with FUSE..."
-        python3 functional_tests.py || echo "Functional tests failed (FUSE may not be available in CI)"
+        echo "Running functional tests..."
+        python3 functional_tests.py
       env:
         PYTHONPATH: ${{ github.workspace }}
 
