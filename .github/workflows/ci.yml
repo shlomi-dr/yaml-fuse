@@ -1,0 +1,219 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Unit tests (no FUSE required)
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10, 3.11]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Run unit tests
+      run: |
+        python3 test_yaml_fuse.py --unit
+    
+    - name: Run demo
+      run: |
+        python3 test_yaml_fuse.py --demo
+    
+    - name: Check code style
+      run: |
+        pip install flake8
+        flake8 yaml-fuse.py test_yaml_fuse.py functional_tests.py --max-line-length=120 --ignore=E501,W503
+
+  # Integration tests (with FUSE)
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Install FUSE
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y fuse
+    
+    - name: Add user to fuse group
+      run: |
+        sudo usermod -a -G fuse $USER
+        sudo chmod 666 /dev/fuse
+        sudo chown root:fuse /dev/fuse
+    
+    - name: Run integration tests
+      run: |
+        sudo python3 test_yaml_fuse.py --integration
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+
+  # Functional tests
+  functional-tests:
+    name: Functional Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Install FUSE
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y fuse
+    
+    - name: Add user to fuse group
+      run: |
+        sudo usermod -a -G fuse $USER
+        sudo chmod 666 /dev/fuse
+        sudo chown root:fuse /dev/fuse
+    
+    - name: Run functional tests
+      run: |
+        python3 functional_tests.py
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+
+  # Security and dependency checks
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+    
+    - name: Run security scan
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        safety check --json --output safety-report.json || true
+    
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
+          safety-report.json
+
+  # Documentation check
+  docs:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check documentation files exist
+      run: |
+        echo "Checking documentation files..."
+        test -f README.md && echo "✅ README.md exists"
+        test -f TESTING.md && echo "✅ TESTING.md exists"
+        test -f LICENSE && echo "✅ LICENSE exists"
+        test -f requirements.txt && echo "✅ requirements.txt exists"
+        test -f install.sh && echo "✅ install.sh exists"
+    
+    - name: Check documentation links
+      run: |
+        echo "Checking for broken links in documentation..."
+        # Check if referenced files exist
+        grep -r "\.md" README.md TESTING.md || true
+        grep -r "\.py" README.md TESTING.md || true
+
+  # Build and package test
+  build:
+    name: Build Test
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Test basic functionality
+      run: |
+        echo "Testing basic functionality..."
+        python3 -c "import yaml; print('✅ PyYAML import successful')"
+        python3 -c "import sys; sys.path.append('.'); exec(open('yaml-fuse.py').read().split('if __name__')[0]); print('✅ yaml-fuse.py syntax check passed')"
+    
+    - name: Test installation script
+      run: |
+        echo "Testing installation script..."
+        chmod +x install.sh
+        # Run install script in dry-run mode or check syntax
+        bash -n install.sh && echo "✅ install.sh syntax check passed" 

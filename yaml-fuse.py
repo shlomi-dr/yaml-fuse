@@ -68,6 +68,7 @@ class YAMLFuse(LoggingMixIn, Operations):
         self.ephemeral_files = {}
         self.file_handles = {}
         self.write_buffers = {}
+        self.cache_invalidated = False
 
     def _load_yaml(self):
         """Load YAML file with error handling"""
@@ -119,6 +120,10 @@ class YAMLFuse(LoggingMixIn, Operations):
                 self.last_mtime = mtime
         except OSError:
             pass  # File might not exist yet
+
+    def _invalidate_cache(self):
+        """Mark cache as invalidated to force refresh"""
+        self.cache_invalidated = True
 
     def _is_ephemeral(self, path):
         """Check if path is an ephemeral file (starts with .)"""
@@ -180,6 +185,11 @@ class YAMLFuse(LoggingMixIn, Operations):
 
     def readdir(self, path, fh):
         """List directory contents"""
+        # Force reload if cache was invalidated
+        if self.cache_invalidated:
+            self._reload_if_needed()
+            self.cache_invalidated = False
+            
         parent, key = self._resolve_path(path)
         if key is not None:
             if isinstance(parent, dict):
@@ -341,6 +351,7 @@ class YAMLFuse(LoggingMixIn, Operations):
             raise OSError(errno.ENOTDIR, '')
                 
         self.dirty = True
+        self._invalidate_cache()
         return 42
 
     def unlink(self, path):
@@ -357,12 +368,15 @@ class YAMLFuse(LoggingMixIn, Operations):
         if isinstance(parent, dict) and key in parent:
             del parent[key]
             self.dirty = True
+            # Invalidate cache to force refresh
+            self._invalidate_cache()
         else:
             raise OSError(errno.ENOENT, '')
 
     def rmdir(self, path):
         """Remove directory (same as unlink for this implementation)"""
         self.unlink(path)
+        # Cache invalidation is handled in unlink
 
     def mkdir(self, path, mode):
         """Create directory"""
@@ -376,6 +390,7 @@ class YAMLFuse(LoggingMixIn, Operations):
             raise OSError(errno.ENOTDIR, '')
             
         self.dirty = True
+        self._invalidate_cache()
         return 0
 
     def flush(self, path, fh):
@@ -396,26 +411,31 @@ class YAMLFuse(LoggingMixIn, Operations):
 
             try:
                 content = data.decode('utf-8')
-                
-                # Check if this looks like a YAML structure (starts with - or { or [)
                 stripped = content.rstrip('\n')
-                if stripped.startswith('-') or stripped.startswith('{') or stripped.startswith('[') or stripped.startswith('key:'):
-                    # Try to parse as YAML first
-                    try:
-                        parsed_yaml = yaml.safe_load(content)
-                        # If it's a valid YAML structure, use the parsed value
+                
+                # Always try to parse as YAML first
+                try:
+                    parsed_yaml = yaml.safe_load(content)
+                    logger.debug(f"YAML parsing result for {path}: {parsed_yaml}")
+                    # If parsing succeeds and the result is not None, use the parsed value
+                    if parsed_yaml is not None:
                         new_value = parsed_yaml
-                    except yaml.YAMLError:
-                        # If it's not valid YAML, treat as string
-                        new_value = content.rstrip('\n')
-                else:
-                    # For content that doesn't look like YAML, preserve as string
+                        logger.debug(f"Using parsed YAML structure for {path}")
+                    else:
+                        # If YAML parsing returns None, treat as empty string
+                        new_value = ""
+                        logger.debug(f"YAML parsing returned None, using empty string for {path}")
+                except yaml.YAMLError as e:
+                    logger.debug(f"YAML parsing failed for {path}: {e}")
+                    # If YAML parsing fails, treat as string
                     if '\n' in stripped and len(stripped.split('\n')) > 1:
-                        # For actual multiline content, treat as string to preserve newlines
+                        # For actual multiline content, preserve as string
                         new_value = content
+                        logger.debug(f"Using multiline string for {path}")
                     else:
                         # For single-line content, treat as string
                         new_value = content.rstrip('\n')
+                        logger.debug(f"Using single-line string for {path}")
             except Exception as e:
                 new_value = data.decode('utf-8', errors='replace')
                 logger.error(f"Error processing content: {e}")
@@ -432,6 +452,7 @@ class YAMLFuse(LoggingMixIn, Operations):
                     parent.append(new_value)
                     
             self.dirty = True
+            self._invalidate_cache()
         
         if self.dirty:
             self._save_yaml()

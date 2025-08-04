@@ -1,6 +1,8 @@
 # YAML FUSE Filesystem
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/shlomi-dr/yaml-fuse/workflows/CI/badge.svg)](https://github.com/shlomi-dr/yaml-fuse/actions/workflows/ci.yml)
+[![Quick Check](https://github.com/shlomi-dr/yaml-fuse/workflows/Quick%20Check/badge.svg)](https://github.com/shlomi-dr/yaml-fuse/actions/workflows/quick-check.yml)
 
 A FUSE filesystem that maps YAML structure to a filesystem hierarchy. Each key in the YAML becomes a file or directory, and nested structures become subdirectories.
 
@@ -14,6 +16,7 @@ A FUSE filesystem that maps YAML structure to a filesystem hierarchy. Each key i
 - **Format Preservation**: Preserves YAML formatting and structure
 - **Verbatim Text**: Preserves exact string content including newlines, spaces, and formatting
 - **Error Handling**: Robust error handling with logging
+- **Comprehensive Testing**: Extensive test suite with unit, integration, and functional tests
 
 ## Installation
 
@@ -84,6 +87,11 @@ python yaml-fuse.py data.yaml /tmp/data --mode json
 3. Enable debug logging:
 ```bash
 python yaml-fuse.py config.yaml /mnt/config --debug
+```
+
+4. Run tests to verify installation:
+```bash
+python3 test_yaml_fuse.py --unit
 ```
 
 ## How It Works
@@ -269,11 +277,52 @@ python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 
 ## Development
 
-### Running Tests
-```bash
-# Run comprehensive test suite
-python test.py
+### Testing
 
+The project includes comprehensive testing with multiple test suites:
+
+#### Quick Test Commands
+```bash
+# Run unit tests (no FUSE required, CI/CD friendly)
+python3 test_yaml_fuse.py --unit
+
+# Run integration tests (requires FUSE)
+sudo python3 test_yaml_fuse.py --integration
+
+# Run all tests
+python3 test_yaml_fuse.py --all
+
+# Run demo functionality
+python3 test_yaml_fuse.py --demo
+
+# Run original functional tests
+python3 functional_tests.py
+```
+
+#### Test Coverage
+
+**Unit Tests** (`test_yaml_fuse.py`):
+- YAML parsing logic and structure detection
+- Path resolution and filesystem operations
+- Cache invalidation and error handling
+- Content generation and block style dumper
+- Simulated filesystem operations
+
+**Integration Tests** (`test_yaml_fuse.py`):
+- File creation, reading, updating, deletion
+- Directory creation and deletion
+- YAML structure parsing and validation
+- Cache invalidation for immediate updates
+- Concurrent access and error handling
+
+**Functional Tests** (`functional_tests.py`):
+- Real FUSE mount/unmount behavior
+- Specific YAML saving edge cases
+- Actual filesystem operations
+- Comprehensive functional validation
+
+#### Manual Testing
+```bash
 # Create test YAML
 echo "test: value" > test.yaml
 
@@ -284,6 +333,8 @@ ls /tmp/test
 cat /tmp/test/test
 umount /tmp/test
 ```
+
+For detailed testing documentation, see [TESTING.md](TESTING.md).
 
 ### Contributing
 1. Fork the repository
