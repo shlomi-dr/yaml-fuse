@@ -26,7 +26,24 @@ import time
 import json
 import argparse
 import logging
-from fuse import FUSE, Operations, LoggingMixIn
+
+# Conditional FUSE import for CI environments
+try:
+    from fuse import FUSE, Operations, LoggingMixIn
+    FUSE_AVAILABLE = True
+except (ImportError, OSError) as e:
+    # FUSE not available (e.g., in CI environment)
+    FUSE_AVAILABLE = False
+    # Create dummy classes for testing
+    class FUSE:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("FUSE not available")
+    
+    class Operations:
+        pass
+    
+    class LoggingMixIn:
+        pass
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -512,6 +529,11 @@ Examples:
         sys.exit(1)
     
     logger.info(f"Mounting {args.yaml_path} at {args.mountpoint} with mode={args.mode}")
+    
+    if not FUSE_AVAILABLE:
+        logger.error("FUSE is not available. Cannot mount filesystem.")
+        logger.error("This usually means libfuse is not installed or not accessible.")
+        sys.exit(1)
     
     try:
         FUSE(YAMLFuse(args.yaml_path, default_mode=args.mode), 
