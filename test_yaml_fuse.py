@@ -350,6 +350,15 @@ class TestYAMLFuseIntegration(unittest.TestCase):
     
     def setUp(self):
         """Set up test environment"""
+        # Check if FUSE is available
+        try:
+            import subprocess
+            result = subprocess.run(['which', 'fusermount'], capture_output=True, text=True)
+            if result.returncode != 0:
+                self.skipTest("FUSE not available (fusermount not found)")
+        except Exception:
+            self.skipTest("FUSE not available")
+        
         # Create temporary directories
         self.test_dir = tempfile.mkdtemp(prefix='yaml-fuse-integration-')
         self.mount_point = os.path.join(self.test_dir, 'mount')
