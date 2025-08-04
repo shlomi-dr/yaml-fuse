@@ -22,7 +22,11 @@ import signal
 from pathlib import Path
 
 # Add the current directory to the path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+except NameError:
+    # __file__ is not available when executed as string
+    sys.path.insert(0, os.getcwd())
 
 # Import the YAMLFuse class from the main file
 try:
