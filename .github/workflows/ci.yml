@@ -161,13 +161,12 @@ jobs:
         safety scan --json || echo "Safety scan completed (deprecated command)"
     
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
         path: |
           bandit-report.json
-          safety-report.json
 
   # Documentation check
   docs:

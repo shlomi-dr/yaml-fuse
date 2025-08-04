@@ -52,7 +52,7 @@ jobs:
         echo "✅ Release artifacts created"
     
     - name: Upload release artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release-files
         path: dist/
@@ -65,7 +65,7 @@ jobs:
         echo "✅ Checksums created"
     
     - name: Upload checksums
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: checksums
         path: dist/checksums.txt 
