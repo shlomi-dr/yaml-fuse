@@ -81,7 +81,9 @@ jobs:
       run: |
         sudo modprobe fuse
         sudo chmod 666 /dev/fuse
-        sudo chown root:fuse /dev/fuse
+        # Create fuse group if it doesn't exist
+        sudo groupadd fuse || true
+        sudo chown root:fuse /dev/fuse || sudo chown root:root /dev/fuse
         sudo usermod -a -G fuse $USER || true
     
     - name: Run integration tests
@@ -121,7 +123,9 @@ jobs:
       run: |
         sudo modprobe fuse
         sudo chmod 666 /dev/fuse
-        sudo chown root:fuse /dev/fuse
+        # Create fuse group if it doesn't exist
+        sudo groupadd fuse || true
+        sudo chown root:fuse /dev/fuse || sudo chown root:root /dev/fuse
         sudo usermod -a -G fuse $USER || true
     
     - name: Run functional tests
