@@ -1,0 +1,2 @@
+PyYAML>=6.0
+fusepy>=3.0.1 

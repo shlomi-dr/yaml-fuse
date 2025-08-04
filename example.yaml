@@ -1,0 +1,27 @@
+name: example-provider
+outputs:
+  resourceId:
+    value: ${exampleResource.id}
+plugins:
+  providers:
+  - name: example
+    path: ../../bin
+resources:
+  exampleResource:
+    properties:
+      applies_to:
+      - production
+      - staging
+      - development
+      description: |
+        This is a multiline description
+        with multiple lines
+          and some indentation
+            and more indentation
+
+        And empty lines too!
+      evaluation_period: weekly
+      name: Example Resource
+      resource_type: external
+    type: example:Resource
+runtime: yaml
