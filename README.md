@@ -17,6 +17,31 @@ A FUSE filesystem that maps YAML structure to a filesystem hierarchy. Each key i
 
 ## Installation
 
+### Quick Install (Recommended)
+
+Use the automated installer script for the easiest setup:
+
+```bash
+# Make the installer executable
+chmod +x install.sh
+
+# Run the installer
+./install.sh
+```
+
+The installer will:
+- ✅ Check for Python 3 and pip3
+- ✅ Install Python dependencies from `requirements.txt`
+- ✅ Detect your operating system (macOS/Linux)
+- ✅ Guide you through FUSE installation with interactive prompts
+- ✅ Provide smart detection for macFUSE on macOS
+- ✅ Handle user group setup on Linux
+- ✅ Give you clear next steps and verification instructions
+
+### Manual Installation
+
+If you prefer manual installation:
+
 1. Install dependencies:
 ```bash
 pip install -r requirements.txt
