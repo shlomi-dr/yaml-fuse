@@ -41,6 +41,11 @@ jobs:
         python3 -m py_compile functional_tests.py
         echo "✅ All Python files compile successfully"
     
+    - name: Quick code style check
+      run: |
+        pip install flake8
+        flake8 yaml-fuse.py test_yaml_fuse.py functional_tests.py --max-line-length=120 --ignore=E501,W503,W291,W293,E302,E305,F401,F841,F541 --count --statistics
+    
     - name: Check documentation
       run: |
         test -f README.md && echo "✅ README.md exists"
