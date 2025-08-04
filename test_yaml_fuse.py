@@ -262,7 +262,8 @@ lines and indentation""",
         with open(self.yaml_file, 'w') as f:
             yaml.dump({'new': 'data'}, f, default_flow_style=False)
         
-        # Force reload
+        # Force reload by resetting last_mtime
+        self.fuse.last_mtime = 0
         self.fuse._reload_if_needed()
         
         # Check that data was reloaded
