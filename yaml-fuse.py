@@ -91,7 +91,7 @@ class YAMLFuse(LoggingMixIn, Operations):
         """Load YAML file with error handling"""
         try:
             with open(self.yaml_path, 'r', encoding='utf-8') as f:
-                self.data = yaml.load(f, Loader=yaml.Loader) or {}
+                self.data = yaml.safe_load(f) or {}
             
             # Convert quoted strings with \n to actual multiline strings
             self._convert_quoted_strings(self.data)
