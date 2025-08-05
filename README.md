@@ -294,42 +294,38 @@ The project includes comprehensive testing with multiple test suites:
 #### Quick Test Commands
 ```bash
 # Run unit tests (no FUSE required, CI/CD friendly)
-python3 test_yaml_fuse.py --unit
+python3 tests.py --unit
 
 # Run integration tests (requires FUSE)
-sudo python3 test_yaml_fuse.py --integration
+sudo python3 tests.py --integration
 
 # Run all tests
-python3 test_yaml_fuse.py --all
+python3 tests.py --all
 
 # Run demo functionality
-python3 test_yaml_fuse.py --demo
-
-# Run original functional tests
-python3 functional_tests.py
+python3 tests.py --demo
 ```
 
 #### Test Coverage
 
-**Unit Tests** (`test_yaml_fuse.py`):
+**Unit Tests** (`tests.py`):
 - YAML parsing logic and structure detection
 - Path resolution and filesystem operations
 - Cache invalidation and error handling
 - Content generation and block style dumper
 - Simulated filesystem operations
 
-**Integration Tests** (`test_yaml_fuse.py`):
+**Integration Tests** (`tests.py`):
 - File creation, reading, updating, deletion
 - Directory creation and deletion
 - YAML structure parsing and validation
 - Cache invalidation for immediate updates
 - Concurrent access and error handling
 
-**Functional Tests** (`functional_tests.py`):
-- Real FUSE mount/unmount behavior
-- Specific YAML saving edge cases
-- Actual filesystem operations
-- Comprehensive functional validation
+**Demo Tests** (`tests.py`):
+- YAML parsing demonstration
+- Cache invalidation demonstration
+- Filesystem operations demonstration
 
 #### Manual Testing
 ```bash

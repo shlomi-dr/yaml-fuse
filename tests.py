@@ -335,9 +335,21 @@ class TestYAMLFuseIntegration(unittest.TestCase):
         # Check if FUSE is available
         try:
             import subprocess
-            result = subprocess.run(['which', 'fusermount'], capture_output=True, text=True)
-            if result.returncode != 0:
-                self.skipTest("FUSE not available (fusermount not found)")
+            import platform
+            
+            # Check for FUSE tools based on platform
+            if platform.system() == "Darwin":  # macOS
+                # On macOS, check for FUSE libraries and try to import fusepy
+                try:
+                    import fuse
+                    # If we can import fuse, assume FUSE is available
+                    pass
+                except ImportError:
+                    self.skipTest("FUSE not available (fusepy not installed)")
+            else:  # Linux
+                result = subprocess.run(['which', 'fusermount'], capture_output=True, text=True)
+                if result.returncode != 0:
+                    self.skipTest("FUSE not available (fusermount not found)")
         except Exception:
             self.skipTest("FUSE not available")
         
@@ -372,7 +384,12 @@ class TestYAMLFuseIntegration(unittest.TestCase):
         self.process = subprocess.Popen([
             'python3', 'yaml-fuse.py', self.yaml_file, self.mount_point
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        time.sleep(3)  # Wait for mount to be ready
+        # Wait for mount to be ready
+        import platform
+        if platform.system() == "Darwin":  # macOS
+            time.sleep(2)  # macOS needs more time
+        else:
+            time.sleep(1)  # Linux
     
     def stop_filesystem(self):
         """Stop the FUSE filesystem"""
@@ -383,9 +400,13 @@ class TestYAMLFuseIntegration(unittest.TestCase):
             except:
                 self.process.kill()
         
-        # Unmount
+        # Unmount - handle both Linux and macOS
         try:
-            subprocess.run(['umount', self.mount_point], check=False)
+            import platform
+            if platform.system() == "Darwin":  # macOS
+                subprocess.run(['sudo', 'umount', self.mount_point], check=False)
+            else:  # Linux
+                subprocess.run(['umount', self.mount_point], check=False)
         except:
             pass
     

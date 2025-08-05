@@ -31,14 +31,13 @@ jobs:
     
     - name: Run demo
       run: |
-        python3 tests.py --demo || echo "Demo tests may fail without FUSE"
+        python3 tests.py --demo || echo "Demo tests may fail without FUSE - this is expected in CI"
     
     - name: Check syntax
       run: |
         python3 -c "import yaml; print('✅ PyYAML import successful')"
         python3 -m py_compile yaml-fuse.py
         python3 -m py_compile tests.py
-        python3 -m py_compile functional_tests.py
         echo "✅ All Python files compile successfully"
     
     - name: Quick code style check

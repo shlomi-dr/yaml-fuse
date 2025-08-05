@@ -26,6 +26,7 @@ import time
 import json
 import argparse
 import logging
+import threading
 
 # Conditional FUSE import for CI environments
 try:
@@ -89,6 +90,9 @@ class YAMLFuse(LoggingMixIn, Operations):
         self.file_handles = {}
         self.write_buffers = {}
         self.cache_invalidated = False
+        self._next_fh = 1  # File handle counter for thread safety
+        self._save_lock = threading.Lock()  # Thread safety for saves
+        self._data_lock = threading.Lock()  # Thread safety for data access
 
     def _load_yaml(self):
         """Load YAML file with error handling"""
@@ -121,15 +125,16 @@ class YAMLFuse(LoggingMixIn, Operations):
 
     def _save_yaml(self):
         """Save YAML file with error handling"""
-        try:
-            with open(self.yaml_path, 'w', encoding='utf-8') as f:
-                yaml.dump(self.data, f, Dumper=BlockStyleDumper, default_flow_style=False, 
-                          sort_keys=False, width=float("inf"), allow_unicode=True, 
-                          explicit_end=False, default_style=None)
-            self.dirty = False
-            self.last_mtime = os.path.getmtime(self.yaml_path)
-        except Exception as e:
-            logger.error(f"Error saving YAML file: {e}")
+        with self._save_lock:
+            try:
+                with open(self.yaml_path, 'w', encoding='utf-8') as f:
+                    yaml.dump(self.data, f, Dumper=BlockStyleDumper, default_flow_style=False, 
+                              sort_keys=False, width=float("inf"), allow_unicode=True, 
+                              explicit_end=False, default_style=None)
+                self.dirty = False
+                self.last_mtime = os.path.getmtime(self.yaml_path)
+            except Exception as e:
+                logger.error(f"Error saving YAML file: {e}")
 
     def _reload_if_needed(self):
         """Reload YAML if source file has changed"""
@@ -175,6 +180,36 @@ class YAMLFuse(LoggingMixIn, Operations):
                         current[part] = {}
                     else:
                         return None, None
+                current = current[part]
+            elif isinstance(current, list):
+                try:
+                    index = int(part)
+                    if 0 <= index < len(current):
+                        current = current[index]
+                    else:
+                        return None, None
+                except ValueError:
+                    return None, None
+            else:
+                return None, None
+                
+        return current, parts[-1]
+
+    def _resolve_path_for_mkdir(self, path):
+        """Resolve path specifically for directory creation"""
+        self._reload_if_needed()
+        
+        if path == '/' or path == '':
+            return self.data, None
+            
+        parts = path.strip('/').split('/')
+        current = self.data
+        
+        # Navigate to parent directory
+        for part in parts[:-1]:
+            if isinstance(current, dict):
+                if part not in current:
+                    current[part] = {}
                 current = current[part]
             elif isinstance(current, list):
                 try:
@@ -283,7 +318,10 @@ class YAMLFuse(LoggingMixIn, Operations):
 
     def open(self, path, flags):
         """Open a file"""
-        fh = len(self.file_handles) + 1
+        # Use a combination of path and counter to ensure unique file handles
+        fh = self._next_fh
+        self._next_fh += 1
+        # Store both the path and the unique handle
         self.file_handles[fh] = path
         return fh
 
@@ -325,17 +363,20 @@ class YAMLFuse(LoggingMixIn, Operations):
             self.ephemeral_files[path] = content
             return len(data)
 
+        # Use path as the key for write buffers to avoid FUSE file handle conflicts
+        path_key = path
+        
         # Accumulate data in write buffer
-        if fh not in self.write_buffers:
-            self.write_buffers[fh] = b''
+        if path_key not in self.write_buffers:
+            self.write_buffers[path_key] = b''
         
         # Add new data to buffer
         if offset == 0:
             # Start of write, replace buffer
-            self.write_buffers[fh] = data
+            self.write_buffers[path_key] = data
         else:
             # Append to existing buffer
-            self.write_buffers[fh] += data
+            self.write_buffers[path_key] += data
         
         return len(data)
 
@@ -349,12 +390,13 @@ class YAMLFuse(LoggingMixIn, Operations):
         stripped_path, _ = self._strip_suffix(path)
         parent, key = self._resolve_path(stripped_path, create_missing=True)
         
-        if isinstance(parent, dict):
-            parent[key] = ""
-        else:
-            raise OSError(errno.ENOTDIR, '')
-                
-        self.dirty = True
+        with self._data_lock:
+            if isinstance(parent, dict):
+                parent[key] = ""
+            else:
+                raise OSError(errno.ENOTDIR, '')
+                    
+            self.dirty = True
 
     def create(self, path, mode):
         """Create a new file"""
@@ -365,13 +407,13 @@ class YAMLFuse(LoggingMixIn, Operations):
         stripped_path, _ = self._strip_suffix(path)
         parent, key = self._resolve_path(stripped_path, create_missing=True)
         
-        if isinstance(parent, dict):
-            parent[key] = ""
-        else:
-            raise OSError(errno.ENOTDIR, '')
-                
-        self.dirty = True
-        self._invalidate_cache()
+        with self._data_lock:
+            if isinstance(parent, dict):
+                parent[key] = ""
+            else:
+                raise OSError(errno.ENOTDIR, '')
+                    
+            self.dirty = True
         return 42
 
     def unlink(self, path):
@@ -385,13 +427,14 @@ class YAMLFuse(LoggingMixIn, Operations):
         if parent is None or key is None:
             raise OSError(errno.ENOENT, '')
             
-        if isinstance(parent, dict) and key in parent:
-            del parent[key]
-            self.dirty = True
-            # Invalidate cache to force refresh
-            self._invalidate_cache()
-        else:
-            raise OSError(errno.ENOENT, '')
+        with self._data_lock:
+            if isinstance(parent, dict) and key in parent:
+                del parent[key]
+                self.dirty = True
+                # Save immediately for deletions since they don't go through release
+                self._save_yaml()
+            else:
+                raise OSError(errno.ENOENT, '')
 
     def rmdir(self, path):
         """Remove directory (same as unlink for this implementation)"""
@@ -401,16 +444,18 @@ class YAMLFuse(LoggingMixIn, Operations):
     def mkdir(self, path, mode):
         """Create directory"""
         stripped_path, _ = self._strip_suffix(path)
-        parent, key = self._resolve_path(os.path.dirname(stripped_path), create_missing=True)
-        full_path = os.path.basename(stripped_path)
+        parent, key = self._resolve_path_for_mkdir(stripped_path)
         
-        if isinstance(parent, dict):
-            parent[full_path] = {}
-        else:
-            raise OSError(errno.ENOTDIR, '')
-            
-        self.dirty = True
-        self._invalidate_cache()
+        if parent is None or key is None:
+            raise OSError(errno.ENOENT, '')
+        
+        with self._data_lock:
+            if isinstance(parent, dict):
+                parent[key] = {}
+            else:
+                raise OSError(errno.ENOTDIR, '')
+                
+            self.dirty = True
         return 0
 
     def flush(self, path, fh):
@@ -420,10 +465,11 @@ class YAMLFuse(LoggingMixIn, Operations):
 
     def release(self, path, fh):
         """Release file handle and save if dirty"""
-        # Process accumulated write data
-        if fh in self.write_buffers:
-            data = self.write_buffers[fh]
-            del self.write_buffers[fh]
+        # Process accumulated write data using path as key
+        path_key = path
+        if path_key in self.write_buffers:
+            data = self.write_buffers[path_key]
+            del self.write_buffers[path_key]
             
             # Process the complete data
             stripped_path, _ = self._strip_suffix(path)
@@ -431,61 +477,48 @@ class YAMLFuse(LoggingMixIn, Operations):
 
             try:
                 content = data.decode('utf-8')
-                stripped = content.rstrip('\n')
                 
-                # Always try to parse as YAML first
-                try:
-                    parsed_yaml = yaml.safe_load(content)
-                    logger.debug(f"YAML parsing result for {path}: {parsed_yaml}")
-                    # If parsing succeeds and the result is not None, use the parsed value
-                    if parsed_yaml is not None:
+                # Check if this looks like a YAML structure (starts with - or { or [ or contains :)
+                stripped = content.rstrip('\n')
+                if stripped.startswith('-') or stripped.startswith('{') or stripped.startswith('[') or ':' in stripped:
+                    # Try to parse as YAML first
+                    try:
+                        parsed_yaml = yaml.safe_load(content)
+                        # If it's a valid YAML structure, use the parsed value
                         new_value = parsed_yaml
                         logger.debug(f"Using parsed YAML structure for {path}")
-                    else:
-                        # If YAML parsing returns None, treat as empty string
-                        new_value = ""
-                        logger.debug(f"YAML parsing returned None, using empty string for {path}")
-                except yaml.YAMLError as e:
-                    logger.debug(f"YAML parsing failed for {path}: {e}")
-                    # If YAML parsing fails, treat as string
-                    if '\n' in content:
-                        # For content with newlines, preserve as multiline string
+                    except yaml.YAMLError:
+                        # If it's not valid YAML, treat as string
+                        new_value = content.rstrip('\n')
+                        logger.debug(f"YAML parsing failed, using as string for {path}")
+                else:
+                    # For content that doesn't look like YAML, preserve as string
+                    if '\n' in stripped and len(stripped.split('\n')) > 1:
+                        # For actual multiline content, treat as string to preserve newlines
                         new_value = content
                         logger.debug(f"Using multiline string for {path}")
                     else:
                         # For single-line content, treat as string
                         new_value = content.rstrip('\n')
                         logger.debug(f"Using single-line string for {path}")
-                else:
-                    # If YAML parsing succeeds but returns a string with newlines converted to spaces,
-                    # and the original content had newlines, preserve the original content
-                    if isinstance(parsed_yaml, str) and '\n' in content and ' ' in parsed_yaml:
-                        # Check if the parsed result looks like it had newlines converted to spaces
-                        original_lines = content.split('\n')
-                        if len(original_lines) > 1:
-                            new_value = content
-                            logger.debug(f"Preserving original multiline content for {path}")
-                        else:
-                            new_value = parsed_yaml
-                    else:
-                        new_value = parsed_yaml
             except Exception as e:
                 new_value = data.decode('utf-8', errors='replace')
                 logger.error(f"Error processing content: {e}")
 
-            if isinstance(parent, dict):
-                parent[key] = new_value
-            elif isinstance(parent, list):
-                try:
-                    index = int(key)
-                    while len(parent) <= index:
-                        parent.append(None)
-                    parent[index] = new_value
-                except ValueError:
-                    parent.append(new_value)
-                    
-            self.dirty = True
-            self._invalidate_cache()
+            with self._data_lock:
+                if isinstance(parent, dict):
+                    parent[key] = new_value
+                elif isinstance(parent, list):
+                    try:
+                        index = int(key)
+                        while len(parent) <= index:
+                            parent.append(None)
+                        parent[index] = new_value
+                    except ValueError:
+                        parent.append(new_value)
+                        
+                self.dirty = True
+                self._invalidate_cache()
         
         if self.dirty:
             self._save_yaml()

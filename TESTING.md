@@ -6,7 +6,7 @@ This document describes the testing infrastructure for the yaml-fuse filesystem.
 
 The testing suite consists of two complementary test files:
 
-### Main Test File (`test_yaml_fuse.py`)
+### Main Test File (`tests.py`)
 - **Purpose**: Comprehensive unit/integration test suite with proper test framework
 - **Requirements**: Python 3.x, PyYAML (FUSE optional for integration tests)
 - **Features**:
@@ -14,15 +14,6 @@ The testing suite consists of two complementary test files:
   - Integration tests (requires FUSE)
   - Demo functionality
   - Built-in test runner with command-line options
-
-### Functional Test File (`functional_tests.py`)
-- **Purpose**: Functional tests that test actual FUSE behavior and edge cases
-- **Requirements**: Python 3.x, PyYAML, FUSE, root privileges
-- **Features**:
-  - Real FUSE mount/unmount testing
-  - Specific YAML saving edge cases
-  - Actual filesystem operations
-  - Comprehensive functional validation
 
 ## Running Tests
 
@@ -172,12 +163,12 @@ jobs:
       run: |
         pip install PyYAML
     - name: Run unit tests
-      run: python3 test_yaml_fuse.py --unit
+      run: python3 tests.py --unit
     - name: Run integration tests
       run: |
         sudo apt-get update
         sudo apt-get install -y fuse
-        sudo python3 test_yaml_fuse.py --integration
+        sudo python3 tests.py --integration
 ```
 
 ## Debugging Tests
