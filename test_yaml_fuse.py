@@ -912,7 +912,7 @@ def run_demo():
         
         # Save the updated YAML
         with open(yaml_file, 'w') as f:
-            yaml.dump(initial_data, f, Dumper=yaml.SafeDumper, default_flow_style=False)
+            yaml.dump(initial_data, f, Dumper=BlockStyleDumper, default_flow_style=False)
         
         print("\nUpdated YAML content:")
         with open(yaml_file, 'r') as f:
@@ -924,7 +924,7 @@ def run_demo():
         
         # Save again
         with open(yaml_file, 'w') as f:
-            yaml.dump(initial_data, f, Dumper=yaml.SafeDumper, default_flow_style=False)
+            yaml.dump(initial_data, f, Dumper=BlockStyleDumper, default_flow_style=False)
         
         print("\nFinal YAML content:")
         with open(yaml_file, 'r') as f:

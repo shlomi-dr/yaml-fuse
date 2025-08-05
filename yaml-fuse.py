@@ -445,14 +445,27 @@ class YAMLFuse(LoggingMixIn, Operations):
                 except yaml.YAMLError as e:
                     logger.debug(f"YAML parsing failed for {path}: {e}")
                     # If YAML parsing fails, treat as string
-                    if '\n' in stripped and len(stripped.split('\n')) > 1:
-                        # For actual multiline content, preserve as string
+                    if '\n' in content:
+                        # For content with newlines, preserve as multiline string
                         new_value = content
                         logger.debug(f"Using multiline string for {path}")
                     else:
                         # For single-line content, treat as string
                         new_value = content.rstrip('\n')
                         logger.debug(f"Using single-line string for {path}")
+                else:
+                    # If YAML parsing succeeds but returns a string with newlines converted to spaces,
+                    # and the original content had newlines, preserve the original content
+                    if isinstance(parsed_yaml, str) and '\n' in content and ' ' in parsed_yaml:
+                        # Check if the parsed result looks like it had newlines converted to spaces
+                        original_lines = content.split('\n')
+                        if len(original_lines) > 1:
+                            new_value = content
+                            logger.debug(f"Preserving original multiline content for {path}")
+                        else:
+                            new_value = parsed_yaml
+                    else:
+                        new_value = parsed_yaml
             except Exception as e:
                 new_value = data.decode('utf-8', errors='replace')
                 logger.error(f"Error processing content: {e}")
