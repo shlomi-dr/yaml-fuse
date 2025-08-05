@@ -1,7 +1,7 @@
 # YAML FUSE Filesystem
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/shlomi-dr/yaml-fuse/workflows/CI%20(Final%20Test)/badge.svg)](https://github.com/shlomi-dr/yaml-fuse/actions/workflows/ci.yml)
+[![CI](https://github.com/shlomi-dr/yaml-fuse/workflows/CI/badge.svg)](https://github.com/shlomi-dr/yaml-fuse/actions/workflows/ci.yml)
 [![Quick Check](https://github.com/shlomi-dr/yaml-fuse/workflows/Quick%20Check/badge.svg)](https://github.com/shlomi-dr/yaml-fuse/actions/workflows/quick-check.yml)
 
 A FUSE filesystem that maps YAML structure to a filesystem hierarchy. Each key in the YAML becomes a file or directory, and nested structures become subdirectories.
