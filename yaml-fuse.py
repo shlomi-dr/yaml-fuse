@@ -59,6 +59,9 @@ class BlockStyleDumper(yaml.SafeDumper):
             stripped = value.rstrip('\n')
             if '\n' in stripped and len(stripped.split('\n')) > 1:
                 return super().represent_scalar(tag, value, style='|')
+            # For single line strings with trailing spaces, strip them to avoid quoting
+            elif value.endswith(' ') and not value.endswith('\n'):
+                return super().represent_scalar(tag, value.rstrip(), style)
         return super().represent_scalar(tag, value, style)
     
     def represent_sequence(self, tag, sequence, flow_style=None):

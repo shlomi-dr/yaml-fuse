@@ -265,6 +265,67 @@ class TestYAMLFuseUnit(unittest.TestCase):
         self.assertIn('structure', self.fuse.data['complex'])
         self.assertIn('nested', self.fuse.data['complex']['structure'])
 
+    def test_multiline_to_single_regression(self):
+        """Test that editing multiline to single line doesn't add extra newlines"""
+        # Test case 1: Original multiline content
+        data1 = {
+            'resources': {
+                'exampleResource': {
+                    'properties': {
+                        'description': 'This is a\nmultiline description\nwith multiple lines'
+                    }
+                }
+            }
+        }
+        
+        result1 = yaml.dump(data1, Dumper=BlockStyleDumper, default_flow_style=False)
+        print("Original multiline result:")
+        print(result1)
+        
+        # Test case 2: After editing to single line
+        data2 = {
+            'resources': {
+                'exampleResource': {
+                    'properties': {
+                        'description': 'This is a single line'
+                    }
+                }
+            }
+        }
+        
+        result2 = yaml.dump(data2, Dumper=BlockStyleDumper, default_flow_style=False)
+        print("\nAfter editing to single line:")
+        print(result2)
+        
+        # Check for the regression pattern
+        if "description: 'This is a single line\n\n        '" in result2:
+            self.fail("❌ REGRESSION DETECTED: Extra newlines and spaces!")
+        else:
+            print("✅ No regression detected")
+    
+    def test_exact_example_yaml_regression(self):
+        """Test with the exact content from example.yaml"""
+        # Load the current example.yaml
+        with open('example.yaml', 'r') as f:
+            data = yaml.safe_load(f)
+        
+        print("Current description value:", repr(data['resources']['exampleResource']['properties']['description']))
+        
+        # Simulate editing the multiline description to a single line
+        data['resources']['exampleResource']['properties']['description'] = 'This is a single line'
+        
+        # Save with BlockStyleDumper
+        result = yaml.dump(data, Dumper=BlockStyleDumper, default_flow_style=False)
+        
+        print("\nResult after editing to single line:")
+        print(result)
+        
+        # Check for the regression pattern
+        if "description: 'This is a single line\n\n        '" in result:
+            self.fail("❌ REGRESSION DETECTED: Extra newlines and spaces!")
+        else:
+            print("✅ No regression detected")
+
 
 class TestYAMLFuseIntegration(unittest.TestCase):
     """Integration tests that require FUSE mounting"""
