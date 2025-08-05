@@ -26,41 +26,44 @@ The testing suite consists of two complementary test files:
 
 ## Running Tests
 
-### Unit Tests (Recommended for CI/CD)
+### CI Tests (Automated)
+The CI pipeline runs these tests automatically:
 ```bash
-# Run unit tests only (no FUSE required)
+# Unit tests (no FUSE required)
 python3 test_yaml_fuse.py --unit
-```
 
-### Integration Tests (Requires FUSE)
-```bash
-# Run integration tests (requires root privileges)
-sudo python3 test_yaml_fuse.py --integration
-```
-
-### All Tests
-```bash
-# Run both unit and integration tests
-python3 test_yaml_fuse.py --all
-```
-
-### Demo
-```bash
-# Run the demo functionality
+# Demo functionality
 python3 test_yaml_fuse.py --demo
+
+# Code style checks
+flake8 yaml-fuse.py test_yaml_fuse.py functional_tests.py
+
+# Security scans
+bandit -r . --skip B404,B603,B607,B108,B110
 ```
 
-### Functional Tests
+### Local Development Tests
+For full testing including FUSE filesystem operations:
 ```bash
-# Run the original functional tests
+# Run all tests (requires FUSE)
+python3 test_yaml_fuse.py --all
+
+# Run specific test types
+python3 test_yaml_fuse.py --integration  # FUSE integration tests
+python3 test_yaml_fuse.py --unit         # Unit tests only
+python3 test_yaml_fuse.py --demo         # Demo functionality
+
+# Run functional tests separately
 python3 functional_tests.py
-```
 
-### Direct Test Execution
-```bash
-# Run all tests directly with unittest
+# Direct test execution
 python3 -m unittest test_yaml_fuse -v
 ```
+
+### Test Strategy
+- **CI Tests**: Unit tests, demos, and code quality checks (no FUSE required)
+- **Local Tests**: Full integration and functional tests with actual FUSE mounting
+- **Why Separate**: FUSE filesystem mounting is complex in CI environments and requires specific system permissions
 
 ## Test Coverage
 
