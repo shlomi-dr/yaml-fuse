@@ -26,8 +26,8 @@ jobs:
     - name: Run all tests
       run: |
         echo "Running comprehensive test suite..."
-        python3 test_yaml_fuse.py --unit
-        python3 test_yaml_fuse.py --demo
+        python3 tests.py --unit
+        python3 tests.py --demo
     
     - name: Test installation
       run: |

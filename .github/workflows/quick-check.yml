@@ -27,24 +27,24 @@ jobs:
     
     - name: Run unit tests
       run: |
-        python3 test_yaml_fuse.py --unit
+        python3 tests.py --unit
     
     - name: Run demo
       run: |
-        python3 test_yaml_fuse.py --demo || echo "Demo tests may fail without FUSE"
+        python3 tests.py --demo || echo "Demo tests may fail without FUSE"
     
     - name: Check syntax
       run: |
         python3 -c "import yaml; print('✅ PyYAML import successful')"
         python3 -m py_compile yaml-fuse.py
-        python3 -m py_compile test_yaml_fuse.py
+        python3 -m py_compile tests.py
         python3 -m py_compile functional_tests.py
         echo "✅ All Python files compile successfully"
     
     - name: Quick code style check
       run: |
         pip install flake8
-        flake8 yaml-fuse.py test_yaml_fuse.py functional_tests.py --max-line-length=120 --ignore=E501,W503,W291,W293,E302,E305,F401,F841,F541,E301,E128,W292,E722 --count --statistics
+        flake8 yaml-fuse.py tests.py --max-line-length=120 --ignore=E501,W503,W291,W293,E302,E305,F401,F841,F541,E301,E128,W292,E722 --count --statistics
     
     - name: Check documentation
       run: |

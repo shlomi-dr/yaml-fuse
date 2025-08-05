@@ -92,10 +92,14 @@ python yaml-fuse.py config.yaml /mnt/config --debug
 4. Run tests to verify installation:
 ```bash
 # Quick test (no FUSE required)
-python3 test_yaml_fuse.py --unit
+python3 tests.py --unit
 
 # Full test suite (requires FUSE - for local development)
-python3 test_yaml_fuse.py --all
+python3 tests.py --all
+
+# Run specific test types
+python3 tests.py --integration  # FUSE integration tests
+python3 tests.py --demo         # Demo functionality
 ```
 
 **Note**: The CI pipeline runs unit tests and demos automatically. Full integration tests with FUSE filesystem mounting are designed for local development and testing.

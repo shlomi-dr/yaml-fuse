@@ -30,13 +30,13 @@ The testing suite consists of two complementary test files:
 The CI pipeline runs these tests automatically:
 ```bash
 # Unit tests (no FUSE required)
-python3 test_yaml_fuse.py --unit
+python3 tests.py --unit
 
 # Demo functionality
-python3 test_yaml_fuse.py --demo
+python3 tests.py --demo
 
 # Code style checks
-flake8 yaml-fuse.py test_yaml_fuse.py functional_tests.py
+flake8 yaml-fuse.py tests.py --max-line-length=120 --ignore=E501,W503,W291,W293,E302,E305,F401,F841,F541,E301,E128,W292,E722
 
 # Security scans
 bandit -r . --skip B404,B603,B607,B108,B110
@@ -46,18 +46,15 @@ bandit -r . --skip B404,B603,B607,B108,B110
 For full testing including FUSE filesystem operations:
 ```bash
 # Run all tests (requires FUSE)
-python3 test_yaml_fuse.py --all
+python3 tests.py --all
 
 # Run specific test types
-python3 test_yaml_fuse.py --integration  # FUSE integration tests
-python3 test_yaml_fuse.py --unit         # Unit tests only
-python3 test_yaml_fuse.py --demo         # Demo functionality
-
-# Run functional tests separately
-python3 functional_tests.py
+python3 tests.py --integration  # FUSE integration tests
+python3 tests.py --unit         # Unit tests only
+python3 tests.py --demo         # Demo functionality
 
 # Direct test execution
-python3 -m unittest test_yaml_fuse -v
+python3 -m unittest tests -v
 ```
 
 ### Test Strategy
