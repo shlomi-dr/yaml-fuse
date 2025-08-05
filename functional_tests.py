@@ -771,6 +771,119 @@ with multiple lines"""
         except:
             pass
 
+def test_multiline_to_single_regression():
+    """Test that editing multiline to single line doesn't add extra newlines"""
+    print("\n" + "=" * 60)
+    print("TEST 10: Multiline to Single Line Regression")
+    print("=" * 60)
+    
+    # Create test YAML file with multiline content
+    yaml_file = f"test_regression_{int(time.time())}.yaml"
+    mount_point = f"/tmp/test_regression_{int(time.time())}"
+    
+    # Create initial YAML with multiline content
+    initial_data = {
+        'resources': {
+            'exampleResource': {
+                'properties': {
+                    'description': 'This is a\nmultiline description\nwith multiple lines'
+                }
+            }
+        }
+    }
+    
+    with open(yaml_file, 'w') as f:
+        yaml.dump(initial_data, f, default_flow_style=False)
+    
+    print(f"Created test YAML file: {yaml_file}")
+    
+    # Start FUSE mount
+    try:
+        # Create mount point
+        os.makedirs(mount_point, exist_ok=True)
+        
+        # Start FUSE in background
+        process = subprocess.Popen([
+            'python3', 'yaml-fuse.py', yaml_file, mount_point
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Wait for mount to be ready
+        time.sleep(3)
+        
+        # Check if mount is working
+        if not os.path.exists(f"{mount_point}/resources"):
+            print("❌ FUSE mount not working")
+            return False
+        
+        print("✅ FUSE mount is working")
+        
+        # Write single line content to replace multiline
+        target_file = f"{mount_point}/resources/exampleResource/properties/description"
+        
+        with open(target_file, 'w') as f:
+            f.write("This is a single line")
+        
+        print("✅ Wrote single line content to FUSE file")
+        
+        # Wait a moment for the file to be saved
+        time.sleep(2)
+        
+        # Check the YAML file
+        with open(yaml_file, 'r') as f:
+            updated_data = yaml.safe_load(f)
+        
+        print(f"Updated YAML data: {updated_data}")
+        
+        # Check the description value
+        description_value = updated_data.get('resources', {}).get('exampleResource', {}).get('properties', {}).get('description')
+        
+        if description_value is None:
+            print("❌ description not found in YAML")
+            return False
+        
+        print(f"description value: {repr(description_value)}")
+        
+        # Check the YAML file content
+        with open(yaml_file, 'r') as f:
+            yaml_content = f.read()
+        
+        print("YAML file content:")
+        print("-" * 40)
+        print(yaml_content)
+        print("-" * 40)
+        
+        # Check for the regression pattern
+        if "description: 'This is a single line\n\n        '" in yaml_content:
+            print("❌ REGRESSION DETECTED: Extra newlines and spaces!")
+            return False
+        elif "description: This is a single line" in yaml_content:
+            print("✅ No regression detected - single line saved correctly")
+            return True
+        else:
+            print("❌ Unexpected YAML format")
+            return False
+        
+    finally:
+        # Cleanup
+        try:
+            process.terminate()
+            process.wait(timeout=5)
+        except:
+            process.kill()
+        
+        # Unmount
+        try:
+            subprocess.run(['umount', mount_point], check=False)
+        except:
+            pass
+        
+        # Clean up files
+        try:
+            os.remove(yaml_file)
+            os.rmdir(mount_point)
+        except:
+            pass
+
 def run_all_tests():
     """Run all tests and report results"""
     print("🧪 YAML FUSE COMPREHENSIVE TEST SUITE")
@@ -786,6 +899,7 @@ def run_all_tests():
         ("FUSE List Write", test_fuse_list_write),
         ("Multiline String Preservation", test_multiline_string_preservation),
         ("Both Functionality", test_both_functionality),
+        ("Multiline to Single Line Regression", test_multiline_to_single_regression),
     ]
     
     passed = 0
